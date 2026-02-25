@@ -78,17 +78,17 @@ If `APP_URL` is set, ask the user:
 
 | Agent | subagent_type | Focus |
 |-------|---------------|-------|
-| Entry Points | `reverse-architect:arch-entry-points` | Startup, processes, Docker, CLI |
-| Data Model | `reverse-architect:arch-data-model` | DB schema, ORM, entities, relationships |
-| API Surface | `reverse-architect:arch-api-surface` | REST routes, WebSocket events, middleware |
-| Execution Engine | `reverse-architect:arch-execution-engine` | Core workflow/job executor, data flow |
-| Node System | `reverse-architect:arch-node-system` | Plugin/node interface, registration, built-ins |
-| Canvas Frontend | `reverse-architect:arch-frontend-canvas` | Visual editor, canvas library, interactions |
-| State Management | `reverse-architect:arch-frontend-state` | Stores, API client, routing, real-time |
-| Queue & Scaling | `reverse-architect:arch-queue-scaling` | BullMQ/workers, HA, leader election, Redis |
-| Expressions & Credentials | `reverse-architect:arch-expression-credential` | Templating engine, credential encryption |
-| Triggers & Webhooks | `reverse-architect:arch-trigger-webhook` | All trigger types, webhook server, activation |
-| Dependencies | `reverse-architect:arch-dependencies` | Full tech stack, package analysis |
+| Entry Points | `arch-entry-points` | Startup, processes, Docker, CLI |
+| Data Model | `arch-data-model` | DB schema, ORM, entities, relationships |
+| API Surface | `arch-api-surface` | REST routes, WebSocket events, middleware |
+| Execution Engine | `arch-execution-engine` | Core workflow/job executor, data flow |
+| Node System | `arch-node-system` | Plugin/node interface, registration, built-ins |
+| Canvas Frontend | `arch-frontend-canvas` | Visual editor, canvas library, interactions |
+| State Management | `arch-frontend-state` | Stores, API client, routing, real-time |
+| Queue & Scaling | `arch-queue-scaling` | BullMQ/workers, HA, leader election, Redis |
+| Expressions & Credentials | `arch-expression-credential` | Templating engine, credential encryption |
+| Triggers & Webhooks | `arch-trigger-webhook` | All trigger types, webhook server, activation |
+| Dependencies | `arch-dependencies` | Full tech stack, package analysis |
 
 For every source agent prompt, prepend:
 ```
@@ -99,7 +99,7 @@ The source directory to analyze is: <SOURCE_DIR>
 
 | Agent | subagent_type | Focus |
 |-------|---------------|-------|
-| Visual Explorer | `reverse-architect:arch-visual-explorer` | Screenshots, design tokens, UX patterns |
+| Visual Explorer | `arch-visual-explorer` | Screenshots, design tokens, UX patterns |
 
 Visual explorer prompt must include:
 ```
