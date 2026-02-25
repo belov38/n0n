@@ -1,37 +1,80 @@
 ---
 description: Explore an entire codebase with parallel subagents and compile a plain-English architecture document for AI-assisted reconstruction
-argument-hint: <source-dir> [output-file]
+argument-hint: <source-dir> [output-file] [app-url]
 ---
 
 # Reverse Architect
 
-You are a principal engineer tasked with producing a comprehensive architecture document for an existing codebase by coordinating a swarm of specialized analysis agents.
+You are a principal engineer producing a comprehensive architecture document by coordinating a swarm of specialized analysis agents.
 
 **Arguments**: `$ARGUMENTS`
-- First argument: path to the source code directory to analyze (required)
-- Second argument: output markdown file path (default: `./ARCHITECTURE.md`)
+- Arg 1: path to the source code directory to analyze (required)
+- Arg 2: output markdown file path (default: `./ARCHITECTURE.md`)
+- Arg 3: running app URL for visual exploration, e.g. `http://localhost:5678` (optional)
 
-Parse the arguments now. If no source directory is provided, ask the user for it before continuing.
+Parse the arguments now. If no source directory is provided, stop and ask the user.
 
 ---
 
 ## Phase 1: Orient
 
-Before launching agents, do a quick orientation (using your own tools — no agents needed):
-1. Run `ls` on the source directory to see top-level structure
-2. Check if there is a `README.md` or `CONTRIBUTING.md` at the root — if so, read it
-3. Count approximate package count (if monorepo)
-4. Confirm the directory exists and is a codebase (not empty)
+Quick orientation using your own tools (no agents):
+1. `ls` the source directory — confirm it exists and is non-empty
+2. Read `README.md` or `CONTRIBUTING.md` at the root if present
+3. Count packages (if monorepo)
 
-Brief summary to user: "Found [X packages / Y top-level dirs]. Launching [N] parallel analysis agents..."
+Tell the user: "Found [X packages / Y dirs]."
 
 ---
 
-## Phase 2: Parallel Deep Exploration
+## Phase 2: Resolve Visual Exploration
 
-**Launch ALL of the following agents simultaneously in a single message** (one `Task` tool call per agent, all in one response). Each agent receives the source directory path in its prompt. Do not wait for one to finish before starting the others.
+Before launching agents, determine whether to run visual exploration:
 
-Use `subagent_type: "reverse-architect:arch-entry-points"` and the pattern below for each:
+**If Arg 3 (app URL) was provided**: use it directly. Skip to Phase 3.
+
+**If Arg 3 was NOT provided**: ask the user:
+
+> "Visual exploration captures live screenshots for accurate UI reconstruction.
+>
+> Is the app running? If yes, what is the URL? (e.g. `http://localhost:5678`)
+> If not, here's how to start it quickly:
+>
+> **n8n** (default port 5678):
+> ```
+> # via npx:
+> npx n8n
+>
+> # via Docker:
+> docker run -it --rm --name n8n -p 5678:5678 docker.n8n.io/n8nio/n8n
+> ```
+>
+> Enter the URL, or type `skip` to do source-only analysis."
+
+Wait for the user's response before proceeding.
+
+- If user gives a URL: store it as `APP_URL`, proceed to Phase 3
+- If user types `skip` or leaves blank: set `APP_URL = null`, proceed to Phase 3
+
+---
+
+## Phase 3: Resolve Login Credentials
+
+If `APP_URL` is set, ask the user:
+
+> "Does the app require login? (yes/no)
+> If yes, provide: email and password (used only by the browser agent, not stored)."
+
+- If yes: store as `LOGIN_EMAIL` and `LOGIN_PASSWORD`
+- If no / skip: set both to null
+
+---
+
+## Phase 4: Parallel Deep Exploration
+
+**Launch ALL agents simultaneously in a single message.**
+
+### Source analysis agents (always run — 11 agents):
 
 | Agent | subagent_type | Focus |
 |-------|---------------|-------|
@@ -47,21 +90,39 @@ Use `subagent_type: "reverse-architect:arch-entry-points"` and the pattern below
 | Triggers & Webhooks | `reverse-architect:arch-trigger-webhook` | All trigger types, webhook server, activation |
 | Dependencies | `reverse-architect:arch-dependencies` | Full tech stack, package analysis |
 
-For every agent prompt, prepend: `The source directory to analyze is: <SOURCE_DIR>\n\n`
+For every source agent prompt, prepend:
+```
+The source directory to analyze is: <SOURCE_DIR>
+```
+
+### Visual explorer (run only if APP_URL is set):
+
+| Agent | subagent_type | Focus |
+|-------|---------------|-------|
+| Visual Explorer | `reverse-architect:arch-visual-explorer` | Screenshots, design tokens, UX patterns |
+
+Visual explorer prompt must include:
+```
+App URL: <APP_URL>
+Output directory: <OUTPUT_DIR>/UI_REFERENCE
+Login required: <yes/no>
+Login email: <LOGIN_EMAIL or "none">
+Login password: <LOGIN_PASSWORD or "none">
+```
+
+Where `OUTPUT_DIR` is the directory containing the output markdown file.
 
 ---
 
-## Phase 3: Synthesize
+## Phase 5: Synthesize
 
-Once ALL agents have returned, synthesize their findings into a single architecture document. Do NOT just concatenate agent outputs — write a coherent, cross-referenced document that a senior engineer could use to rebuild the system from scratch.
+Once ALL agents have returned, synthesize into one architecture document. Do not just concatenate — write a coherent, cross-referenced doc a senior engineer could use to rebuild from scratch.
 
-Write the output to the specified output file using the Write tool.
+Write the output to the specified file using the Write tool.
 
 ---
 
 ## Output Document Structure
-
-The output file must follow this exact structure:
 
 ```
 # [Project Name] — Architecture Document
@@ -72,24 +133,23 @@ The output file must follow this exact structure:
 2-3 sentences: what this system does and who uses it.
 
 ## 2. System Overview
-High-level Mermaid diagram showing: frontend → API server → execution engine → DB/Redis, with workers on the side.
+High-level Mermaid diagram: frontend → API server → execution engine → DB/Redis, workers on the side.
 
 ## 3. Technology Stack
 Table: Layer | Technology | Version | Role
-Cover: runtime, framework, DB, cache, queue, frontend, canvas, state, build tools.
 
 ## 4. Monorepo / Package Structure
-List of all packages/apps with one-line description each. Dependency arrows between packages.
+All packages with one-line descriptions. Dependency arrows.
 
 ## 5. Core Domain Model
 ### Entities
-For each entity: name, what it represents, key fields, relationships.
-### Entity Relationship Diagram (Mermaid)
+Each entity: name, what it represents, key fields, relationships.
+### ERD (Mermaid)
 
 ## 6. Execution Engine
-### How a Workflow Runs (step-by-step)
-### Data Envelope (the structure passed between nodes)
-### Execution States (state machine diagram)
+### How a Workflow Runs (numbered steps with file:line refs)
+### Data Envelope
+### Execution State Machine (ASCII or Mermaid)
 ### Parallelism & Branching
 ### Error Handling & Retry
 
@@ -98,12 +158,12 @@ For each entity: name, what it represents, key fields, relationships.
 ### Parameter Type System
 ### Node Lifecycle
 ### Built-in Node Catalog (table)
-### How to Add a New Node (step-by-step)
+### How to Add a New Node
 
 ## 8. Trigger System
 ### Trigger Types (table)
 ### Webhook Architecture
-### Schedule / Cron System
+### Cron / Schedule System
 ### Workflow Activation Lifecycle
 
 ## 9. API Reference
@@ -118,12 +178,12 @@ For each entity: name, what it represents, key fields, relationships.
 ### Routing Map
 
 ## 11. Credential & Expression System
-### Credential Lifecycle (creation → encryption → injection)
+### Credential Lifecycle
 ### Expression Syntax & Context
 ### Security Considerations
 
 ## 12. Scaling & High Availability
-### Process Topology (Mermaid diagram)
+### Process Topology (Mermaid)
 ### Queue Architecture
 ### Multi-Instance Coordination
 ### Redis Usage Map
@@ -131,16 +191,26 @@ For each entity: name, what it represents, key fields, relationships.
 
 ## 13. Configuration Reference
 ### Required Environment Variables
-### Optional Environment Variables
-### Feature Flags
+### Optional / Feature Flags
 
-## 14. Key Patterns & Conventions
-List 10-15 recurring architectural patterns observed. Example: "Repository pattern for all DB access", "Constructor injection for all dependencies", "All async errors bubble to execution record".
+## 14. UI & UX Reference
+[Include this section only if visual exploration ran]
+### Design System Summary
+Key colors, typography, spacing rhythm from design-tokens.json.
+### Screen Inventory
+Table: Screen | Route | Screenshot | Key UX Notes
+### Key UX Patterns to Preserve
+10 bullet points: the most important visual/interaction decisions.
+### Link to Full Visual Reference
+See [UI_REFERENCE/UI_REFERENCE.md](./UI_REFERENCE/UI_REFERENCE.md)
 
-## 15. Rebuild Roadmap
-Ordered list of what to build first when reconstructing this system:
+## 15. Key Patterns & Conventions
+10-15 recurring architectural patterns observed in the codebase.
+
+## 16. Rebuild Roadmap
+Ordered build sequence:
 1. Data model + DB layer
-2. Core execution engine (no infrastructure)
+2. Core execution engine (infrastructure-free)
 3. Node system + built-in nodes
 4. Queue + worker infrastructure
 5. REST API + WebSocket server
@@ -148,29 +218,30 @@ Ordered list of what to build first when reconstructing this system:
 7. Frontend canvas + state
 8. Expression engine
 9. Credential system
-...
+10. UI polish (use UI_REFERENCE as visual spec)
 
-## 16. What to Improve
-Honest assessment: what are the architectural weaknesses? What would you design differently? (1 paragraph per concern, max 5)
+## 17. What to Improve
+Honest assessment of architectural weaknesses (max 5, one paragraph each).
 ```
 
 ---
 
 ## Quality Rules
 
-- Every claim must be traceable to specific files explored by agents
-- Include `file:line` references for the most important code locations
+- All claims traceable to specific files from agents
+- `file:line` references for the most important code locations
 - Mermaid diagrams must be syntactically valid
-- The document should be self-contained — a reader should not need to look at source code to understand the architecture
-- Write in plain English. Avoid jargon without definition.
-- Length target: 3000–8000 words. Thorough but not padded.
+- Self-contained: reader needs no source access to understand the architecture
+- Plain English. Define jargon.
+- Length: 3000–8000 words
 
 ---
 
 ## Final Step
 
-After writing the file, tell the user:
-- Path to the generated file
-- How many agents ran
-- Top 3 architectural insights discovered
-- Any gaps where agents found insufficient information (so user knows what may be incomplete)
+Tell the user:
+- Path to the generated ARCHITECTURE.md
+- Whether visual exploration ran (and path to UI_REFERENCE/ if it did)
+- How many agents ran in total
+- Top 3 architectural insights
+- Any gaps (screens not captured, areas with thin coverage)
