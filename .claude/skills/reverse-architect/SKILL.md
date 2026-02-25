@@ -1,6 +1,6 @@
 ---
 description: Explore an entire codebase with parallel subagents and compile a plain-English architecture document for AI-assisted reconstruction
-argument-hint: <source-dir> [output-file] [app-url]
+argument-hint: <source-dir> [output-dir] [app-url]
 ---
 
 # Reverse Architect
@@ -9,7 +9,7 @@ You are a principal engineer producing a comprehensive architecture document by 
 
 **Arguments**: `$ARGUMENTS`
 - Arg 1: path to the source code directory to analyze (required)
-- Arg 2: output markdown file path (default: `./ARCHITECTURE.md`)
+- Arg 2: output directory path (default: `./architecture`)
 - Arg 3: running app URL for visual exploration, e.g. `http://localhost:5678` (optional)
 
 Parse the arguments now. If no source directory is provided, stop and ask the user.
@@ -72,153 +72,192 @@ If `APP_URL` is set, ask the user:
 
 ## Phase 4: Parallel Deep Exploration
 
+**Create the output directory** (`<OUTPUT_DIR>` and `<OUTPUT_DIR>/details/`) before launching agents.
+
 **Launch ALL agents simultaneously in a single message.**
+
+### Critical instruction for ALL agent prompts
+
+Every agent prompt MUST include:
+
+```
+The source directory to analyze is: <SOURCE_DIR>
+
+OUTPUT INSTRUCTIONS:
+Write your complete analysis to: <OUTPUT_DIR>/details/<FILENAME>
+Use the Write tool to create this file.
+
+FILE REFERENCE REQUIREMENT:
+For EVERY key code location you discover, include the absolute file path and line number
+in the format `file_path:line_number`. These references are critical — future AI agents
+will use them to navigate the codebase during reconstruction.
+
+Include file references for:
+- Interface/type definitions
+- Class declarations and key methods
+- Configuration files and entry points
+- Database schemas and migrations
+- Route/endpoint registrations
+- Store definitions
+- Component files
+- Test files (if relevant to understanding behavior)
+
+At the END of your document, include a "## Key Files" section that lists the 10-20 most
+important files for this area, with one-line descriptions of why each matters.
+```
 
 ### Source analysis agents (always run — 11 agents):
 
-| Agent | subagent_type | Focus |
-|-------|---------------|-------|
-| Entry Points | `arch-entry-points` | Startup, processes, Docker, CLI |
-| Data Model | `arch-data-model` | DB schema, ORM, entities, relationships |
-| API Surface | `arch-api-surface` | REST routes, WebSocket events, middleware |
-| Execution Engine | `arch-execution-engine` | Core workflow/job executor, data flow |
-| Node System | `arch-node-system` | Plugin/node interface, registration, built-ins |
-| Canvas Frontend | `arch-frontend-canvas` | Visual editor, canvas library, interactions |
-| State Management | `arch-frontend-state` | Stores, API client, routing, real-time |
-| Queue & Scaling | `arch-queue-scaling` | BullMQ/workers, HA, leader election, Redis |
-| Expressions & Credentials | `arch-expression-credential` | Templating engine, credential encryption |
-| Triggers & Webhooks | `arch-trigger-webhook` | All trigger types, webhook server, activation |
-| Dependencies | `arch-dependencies` | Full tech stack, package analysis |
-
-For every source agent prompt, prepend:
-```
-The source directory to analyze is: <SOURCE_DIR>
-```
+| # | Agent | subagent_type | Output File | Focus |
+|---|-------|---------------|-------------|-------|
+| 1 | Entry Points | `arch-entry-points` | `01-entry-points.md` | Startup sequences, process model, CLI commands, Docker, deployment topology, env vars |
+| 2 | Data Model | `arch-data-model` | `02-data-model.md` | DB schema, ORM entities, migrations, relationships, domain vocabulary, ERD |
+| 3 | API Surface | `arch-api-surface` | `03-api-surface.md` | REST endpoints (all of them with request/response shapes), WebSocket events, middleware stack, error format, auth flow |
+| 4 | Execution Engine | `arch-execution-engine` | `04-execution-engine.md` | Core workflow executor, state machine, data envelope, node dispatch, retry, error handling, sub-workflows |
+| 5 | Node System | `arch-node-system` | `05-node-system.md` | Node interface contract, parameter types, node lifecycle, credential declaration, versioning, declarative pattern, AI sub-nodes, how to add a node |
+| 6 | Canvas Frontend | `arch-frontend-canvas` | `06-frontend-canvas.md` | Component tree, data↔visual mapping, interaction model, execution visualization, coordinate system, layout algorithm |
+| 7 | State Management | `arch-frontend-state` | `07-frontend-state.md` | All Pinia stores, API client layer, push connection, real-time event handlers, routing, localStorage persistence |
+| 8 | Queue & Scaling | `arch-queue-scaling` | `08-queue-scaling.md` | Queue library config, producer/consumer, multi-instance topology, leader election, push relay in HA, Redis usage map, graceful shutdown, failure recovery |
+| 9 | Expressions & Credentials | `arch-expression-credential` | `09-expressions-credentials.md` | Expression syntax, evaluation pipeline, sandbox security, context variables, credential encryption, OAuth flow, key management |
+| 10 | Triggers & Webhooks | `arch-trigger-webhook` | `10-triggers-webhooks.md` | Trigger type matrix, webhook URL lifecycle, scheduler architecture, activation system, webhook server, test webhooks |
+| 11 | Dependencies | `arch-dependencies` | `11-dependencies.md` | Full tech stack table with versions and roles, key library choices, patches/overrides, build tooling |
 
 ### Visual explorer (run only if APP_URL is set):
 
-| Agent | subagent_type | Focus |
-|-------|---------------|-------|
-| Visual Explorer | `arch-visual-explorer` | Screenshots, design tokens, UX patterns |
+| Agent | subagent_type | Output | Focus |
+|-------|---------------|--------|-------|
+| Visual Explorer | `arch-visual-explorer` | `<OUTPUT_DIR>/ui-reference/` | Screenshots, design tokens, UX patterns |
 
 Visual explorer prompt must include:
 ```
 App URL: <APP_URL>
-Output directory: <OUTPUT_DIR>/UI_REFERENCE
+Output directory: <OUTPUT_DIR>/ui-reference
 Login required: <yes/no>
 Login email: <LOGIN_EMAIL or "none">
 Login password: <LOGIN_PASSWORD or "none">
 ```
 
-Where `OUTPUT_DIR` is the directory containing the output markdown file.
+**If visual explorer fails due to permissions**, do the visual exploration yourself (navigate pages, take screenshots, extract design tokens) and write `<OUTPUT_DIR>/ui-reference/UI_REFERENCE.md`.
 
 ---
 
 ## Phase 5: Synthesize
 
-Once ALL agents have returned, synthesize into one architecture document. Do not just concatenate — write a coherent, cross-referenced doc a senior engineer could use to rebuild from scratch.
+Once ALL agents have returned, write the main architecture index file to `<OUTPUT_DIR>/ARCHITECTURE.md`.
 
-Write the output to the specified file using the Write tool.
+**This is NOT a full document** — it is a concise overview (~2000-3000 words) that:
+1. Summarizes each area in 1-3 paragraphs
+2. Links to the detailed file for each area
+3. Cross-references between areas where they interact
+4. Provides the rebuild roadmap with references to which detail files to read for each step
+
+Do NOT duplicate the detailed content from agent files. The main file is a map; the detail files are the territory.
 
 ---
 
-## Output Document Structure
+## Output Structure
 
 ```
+<OUTPUT_DIR>/
+├── ARCHITECTURE.md              ← Main index (concise overview + links)
+├── details/
+│   ├── 01-entry-points.md       ← Full analysis with file:line refs
+│   ├── 02-data-model.md
+│   ├── 03-api-surface.md
+│   ├── 04-execution-engine.md
+│   ├── 05-node-system.md
+│   ├── 06-frontend-canvas.md
+│   ├── 07-frontend-state.md
+│   ├── 08-queue-scaling.md
+│   ├── 09-expressions-credentials.md
+│   ├── 10-triggers-webhooks.md
+│   └── 11-dependencies.md
+└── ui-reference/                ← Only if visual exploration ran
+    ├── UI_REFERENCE.md
+    └── *.png
+```
+
+## Main ARCHITECTURE.md Structure
+
+```markdown
 # [Project Name] — Architecture Document
 
 > Auto-generated by reverse-architect. Source: [source-dir]. Date: [date].
+> Detail files: [./details/](./details/)
 
 ## 1. Executive Summary
 2-3 sentences: what this system does and who uses it.
 
 ## 2. System Overview
-High-level Mermaid diagram: frontend → API server → execution engine → DB/Redis, workers on the side.
+High-level Mermaid diagram: frontend → API server → execution engine → DB/Redis.
+Brief description of each major component and how they connect.
 
 ## 3. Technology Stack
 Table: Layer | Technology | Version | Role
+→ Full analysis: [details/11-dependencies.md](./details/11-dependencies.md)
 
 ## 4. Monorepo / Package Structure
-All packages with one-line descriptions. Dependency arrows.
+All packages with one-line descriptions. Dependency diagram (Mermaid).
+→ Full analysis: [details/01-entry-points.md](./details/01-entry-points.md)
 
 ## 5. Core Domain Model
-### Entities
-Each entity: name, what it represents, key fields, relationships.
-### ERD (Mermaid)
+Key entities (1-2 sentences each), simplified ERD (Mermaid).
+→ Full schema: [details/02-data-model.md](./details/02-data-model.md)
 
 ## 6. Execution Engine
-### How a Workflow Runs (numbered steps with file:line refs)
-### Data Envelope
-### Execution State Machine (ASCII or Mermaid)
-### Parallelism & Branching
-### Error Handling & Retry
+How a workflow runs (high-level numbered steps). State machine diagram.
+→ Full analysis: [details/04-execution-engine.md](./details/04-execution-engine.md)
 
 ## 7. Node / Plugin System
-### Node Interface (complete contract)
-### Parameter Type System
-### Node Lifecycle
-### Built-in Node Catalog (table)
-### How to Add a New Node
+Node interface summary, how nodes are loaded, how to add a new one.
+→ Full contract: [details/05-node-system.md](./details/05-node-system.md)
 
 ## 8. Trigger System
-### Trigger Types (table)
-### Webhook Architecture
-### Cron / Schedule System
-### Workflow Activation Lifecycle
+Trigger type table, webhook flow summary.
+→ Full analysis: [details/10-triggers-webhooks.md](./details/10-triggers-webhooks.md)
 
 ## 9. API Reference
-### REST Endpoints (grouped by resource)
-### WebSocket / Push Events
-### Middleware Stack
+Endpoint groups summary, push event summary, auth model.
+→ Full reference: [details/03-api-surface.md](./details/03-api-surface.md)
 
 ## 10. Frontend Architecture
-### Canvas Editor
-### State Management (store catalog)
-### Real-Time Update Path
-### Routing Map
+Canvas editor summary, store catalog table, real-time update path.
+→ Canvas details: [details/06-frontend-canvas.md](./details/06-frontend-canvas.md)
+→ State details: [details/07-frontend-state.md](./details/07-frontend-state.md)
 
 ## 11. Credential & Expression System
-### Credential Lifecycle
-### Expression Syntax & Context
-### Security Considerations
+Encryption summary, expression syntax overview.
+→ Full analysis: [details/09-expressions-credentials.md](./details/09-expressions-credentials.md)
 
 ## 12. Scaling & High Availability
-### Process Topology (Mermaid)
-### Queue Architecture
-### Multi-Instance Coordination
-### Redis Usage Map
-### Graceful Shutdown & Recovery
+Process topology (Mermaid), queue summary, leader election.
+→ Full analysis: [details/08-queue-scaling.md](./details/08-queue-scaling.md)
 
 ## 13. Configuration Reference
-### Required Environment Variables
-### Optional / Feature Flags
+Required env vars table, feature flags.
+→ Full reference: [details/01-entry-points.md](./details/01-entry-points.md)
 
 ## 14. UI & UX Reference
-[Include this section only if visual exploration ran]
-### Design System Summary
-Key colors, typography, spacing rhythm from design-tokens.json.
-### Screen Inventory
-Table: Screen | Route | Screenshot | Key UX Notes
-### Key UX Patterns to Preserve
-10 bullet points: the most important visual/interaction decisions.
-### Link to Full Visual Reference
-See [UI_REFERENCE/UI_REFERENCE.md](./UI_REFERENCE/UI_REFERENCE.md)
+[Include only if visual exploration ran]
+Design token summary, screen inventory, key UX patterns.
+→ Full reference: [ui-reference/UI_REFERENCE.md](./ui-reference/UI_REFERENCE.md)
 
 ## 15. Key Patterns & Conventions
-10-15 recurring architectural patterns observed in the codebase.
+10-15 recurring architectural patterns observed across the codebase.
 
 ## 16. Rebuild Roadmap
-Ordered build sequence:
-1. Data model + DB layer
-2. Core execution engine (infrastructure-free)
-3. Node system + built-in nodes
-4. Queue + worker infrastructure
-5. REST API + WebSocket server
-6. Trigger system + webhook server
-7. Frontend canvas + state
-8. Expression engine
-9. Credential system
-10. UI polish (use UI_REFERENCE as visual spec)
+Ordered build sequence. For each step, reference which detail file(s) to read:
+
+1. **Data model + DB layer** → Read: [02-data-model.md](./details/02-data-model.md)
+2. **Core execution engine** → Read: [04-execution-engine.md](./details/04-execution-engine.md)
+3. **Expression engine** → Read: [09-expressions-credentials.md](./details/09-expressions-credentials.md)
+4. **Node system + built-in nodes** → Read: [05-node-system.md](./details/05-node-system.md)
+5. **Credential system** → Read: [09-expressions-credentials.md](./details/09-expressions-credentials.md)
+6. **Queue + worker infrastructure** → Read: [08-queue-scaling.md](./details/08-queue-scaling.md)
+7. **REST API + WebSocket server** → Read: [03-api-surface.md](./details/03-api-surface.md), [01-entry-points.md](./details/01-entry-points.md)
+8. **Trigger system + webhook server** → Read: [10-triggers-webhooks.md](./details/10-triggers-webhooks.md)
+9. **Frontend canvas + state** → Read: [06-frontend-canvas.md](./details/06-frontend-canvas.md), [07-frontend-state.md](./details/07-frontend-state.md)
+10. **UI polish** → Read: [ui-reference/UI_REFERENCE.md](./ui-reference/UI_REFERENCE.md)
 
 ## 17. What to Improve
 Honest assessment of architectural weaknesses (max 5, one paragraph each).
@@ -228,20 +267,21 @@ Honest assessment of architectural weaknesses (max 5, one paragraph each).
 
 ## Quality Rules
 
-- All claims traceable to specific files from agents
-- `file:line` references for the most important code locations
+- The main ARCHITECTURE.md is concise (2000-3000 words) — it's an index, not a dump
+- Each detail file is thorough (1000-5000 words) with `file:line` references throughout
+- Every detail file ends with a "## Key Files" section listing the 10-20 most important files
 - Mermaid diagrams must be syntactically valid
-- Self-contained: reader needs no source access to understand the architecture
 - Plain English. Define jargon.
-- Length: 3000–8000 words
+- Cross-references between detail files where systems interact (e.g., execution engine doc references the node system doc)
 
 ---
 
 ## Final Step
 
 Tell the user:
-- Path to the generated ARCHITECTURE.md
-- Whether visual exploration ran (and path to UI_REFERENCE/ if it did)
+- Path to the output directory
+- How many detail files were generated
+- Whether visual exploration ran (and path to ui-reference/ if it did)
 - How many agents ran in total
 - Top 3 architectural insights
-- Any gaps (screens not captured, areas with thin coverage)
+- Any gaps (areas with thin coverage)
