@@ -2,7 +2,7 @@
 name: arch-entry-points
 description: Discovers all application entry points, startup sequences, process model, CLI, Docker, and deployment topology
 tools: Glob, Grep, LS, Read, BashOutput
-model: sonnet
+model: haiku
 color: cyan
 ---
 

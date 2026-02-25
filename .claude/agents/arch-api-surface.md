@@ -2,7 +2,7 @@
 name: arch-api-surface
 description: Maps the complete API surface — REST endpoints, WebSocket events, GraphQL schema, webhooks, and API contracts
 tools: Glob, Grep, LS, Read, BashOutput
-model: sonnet
+model: haiku
 color: blue
 ---
 
