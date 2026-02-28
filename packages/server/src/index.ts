@@ -24,6 +24,7 @@ export { SettingsService } from './services/settings.service';
 export { ActiveExecutions } from './services/active-executions';
 export { ExecutionPersistence } from './services/execution-persistence';
 export { ExecutionPruningService } from './services/execution-pruning.service';
+export { CredentialsTester } from './services/credentials-tester';
 
 // Encryption
 export { Cipher } from './encryption/cipher';
@@ -46,7 +47,7 @@ export { WorkflowRunner } from './workflow-runner';
 export type { WorkflowRunnerDeps, WorkflowExecutionData } from './workflow-runner';
 
 // Execution lifecycle hooks
-export { getLifecycleHooksForRegularMain } from './execution-lifecycle/hooks';
+export { getLifecycleHooksForRegularMain, getLifecycleHooksForScalingWorker } from './execution-lifecycle/hooks';
 export type { LifecycleHookDeps, LifecycleHookOptions } from './execution-lifecycle/hooks';
 
 // Active workflow manager
@@ -54,3 +55,8 @@ export { ActiveWorkflowManager } from './active-workflow-manager';
 
 // Push service
 export { PushService, getPushService } from './push/push.service';
+
+// Node execution
+export { createNodeExecutor } from './node-executor';
+export { buildAdditionalData } from './additional-data-factory';
+export { CredentialsHelper } from './credentials-helper';

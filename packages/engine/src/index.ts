@@ -7,6 +7,9 @@ export {
 	type HookFunction,
 } from './execution-lifecycle-hooks';
 export { NodeExecutionContext, type NodeExecutionContextOptions } from './context';
+export { ExecuteContext } from './context';
+export { TriggerContext, type TriggerContextOptions } from './context';
+export { PollContext, type PollContextOptions } from './context';
 export {
 	DirectedGraph,
 	type GraphConnection,

@@ -16,7 +16,8 @@ import {
 	FolderRepo,
 } from '@n0n/db';
 import { loadAllNodes } from '@n0n/nodes';
-import type { NodeExecutor, EngineAdditionalData } from '@n0n/engine';
+import type { NodeExecutor } from '@n0n/engine';
+import { ActiveWorkflows, ScheduledTaskManager, TriggersAndPollers } from '@n0n/engine';
 import {
 	// Route creators
 	createWorkflowRoutes,
@@ -48,6 +49,11 @@ import {
 	getLifecycleHooksForRegularMain,
 	// Encryption
 	InstanceSettings,
+	Cipher,
+	// Node execution
+	createNodeExecutor,
+	buildAdditionalData,
+	CredentialsHelper,
 	// Binary data
 	BinaryDataService,
 	// Webhooks
@@ -99,7 +105,7 @@ async function main() {
 	await binaryDataService.init();
 
 	// Node types
-	const { nodeTypes } = loadAllNodes();
+	const { nodeTypes, credentialTypes } = loadAllNodes();
 
 	// Execution persistence
 	const executionPersistence = new ExecutionPersistence(
@@ -108,12 +114,15 @@ async function main() {
 		executionMetadataRepo,
 	);
 
-	// Node executor placeholder — the real implementation lives in
-	// the execution context layer and is wired when the engine runs.
-	// For now this is a minimal stub so services can be constructed.
-	const nodeExecutor: NodeExecutor = async (_params) => {
-		throw new Error('NodeExecutor not wired — this should be replaced at runtime');
-	};
+	// Credentials helper (for node execution contexts)
+	const cipher = new Cipher(instanceSettings);
+	const credentialsHelper = new CredentialsHelper(credentialRepo, cipher, credentialTypes);
+
+	// Additional data for the engine (rich n8n-compatible version)
+	const additionalData = buildAdditionalData({ credentialsHelper, variableRepo, pushService });
+
+	// Node executor wired with real additional data
+	const nodeExecutor: NodeExecutor = createNodeExecutor(additionalData);
 
 	// Lifecycle hook deps
 	const hookDeps = {
@@ -143,9 +152,6 @@ async function main() {
 		binaryDataService,
 		workflowRunner,
 	);
-
-	// Additional data for the engine
-	const additionalData: EngineAdditionalData = {};
 
 	// Hook factory for webhook handlers
 	const createHooks = (
@@ -220,7 +226,7 @@ async function main() {
 		.use(createFolderRoutes(folderService))
 		.use(createVariableRoutes(variableService))
 		.use(createSettingsRoutes(settingsService))
-		.use(createNodeTypesRoutes(nodeTypes))
+		.use(createNodeTypesRoutes(nodeTypes, credentialTypes))
 		.use(createImportExportRoutes(workflowService))
 		// Webhook routes
 		.use(createWebhookRoutes(webhookHandler))
@@ -231,7 +237,18 @@ async function main() {
 	let activeWorkflowManager: ActiveWorkflowManager | undefined;
 
 	if (!QUEUE_MODE) {
-		activeWorkflowManager = new ActiveWorkflowManager(workflowRepo, webhookService);
+		const engineActiveWorkflows = new ActiveWorkflows();
+		const scheduledTaskManager = new ScheduledTaskManager();
+		const triggersAndPollers = new TriggersAndPollers();
+		activeWorkflowManager = new ActiveWorkflowManager(
+			workflowRepo,
+			webhookService,
+			nodeTypes,
+			engineActiveWorkflows,
+			scheduledTaskManager,
+			triggersAndPollers,
+			workflowRunner,
+		);
 		await activeWorkflowManager.init();
 		console.log('Active workflows re-activated');
 	} else {

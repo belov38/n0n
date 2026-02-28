@@ -33,6 +33,8 @@
         "@n0n/nodes": "workspace:*",
         "@n0n/queue": "workspace:*",
         "@n0n/scaling": "workspace:*",
+        "@n0n/server": "workspace:*",
+        "n8n-workflow": "^1.76.1",
       },
     },
     "packages/db": {

@@ -144,8 +144,7 @@ export class WebhookRequestHandler {
       return this.webhookNotFoundResponse(method, path);
     }
 
-    // Determine response mode from webhook node configuration
-    const responseMode = this.getResponseMode(webhook.node);
+    const responseMode = await this.liveWebhooks.getResponseMode(webhook);
 
     const result = await this.liveWebhooks.executeWebhook(webhook, request, responseMode);
     return this.buildResponse(result, responseMode, request);
@@ -283,14 +282,5 @@ export class WebhookRequestHandler {
       404,
       `The "${method}" webhook for path "${path}" is not registered`,
     );
-  }
-
-  /**
-   * Determine the response mode for a webhook. In the future this will read from
-   * the node parameters; for now, default to 'lastNode'.
-   */
-  private getResponseMode(_nodeName: string): WebhookResponseMode {
-    // TODO: Read from workflow node parameters once node config is wired
-    return 'lastNode';
   }
 }

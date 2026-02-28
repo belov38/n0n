@@ -56,6 +56,26 @@ export class LiveWebhooks {
   }
 
   /**
+   * Resolve the response mode from the webhook node's parameters in the workflow.
+   * Falls back to 'lastNode' if not configured.
+   */
+  async getResponseMode(webhook: Webhook): Promise<WebhookResponseMode> {
+    const workflowData = await this.deps.workflowRepo.findById(webhook.workflowId);
+    if (!workflowData) return 'lastNode';
+
+    const nodes = workflowData.nodes as INode[];
+    const node = nodes.find((n) => n.name === webhook.node);
+    if (!node?.parameters?.responseMode) return 'lastNode';
+
+    const mode = node.parameters.responseMode as string;
+    if (mode === 'onReceived' || mode === 'lastNode' || mode === 'responseNode') {
+      return mode;
+    }
+
+    return 'lastNode';
+  }
+
+  /**
    * Execute a webhook: load the workflow, create an execution, run through the engine,
    * and return the result.
    */
@@ -192,7 +212,7 @@ export class LiveWebhooks {
   private async runWorkflow(
     workflow: Workflow,
     startNode: INode,
-    webhookInput: Record<string, unknown>,
+    _webhookInput: Record<string, unknown>,
     hooks: ExecutionLifecycleHooks,
   ): Promise<IRun> {
     const executor = new WorkflowExecute(
@@ -276,7 +296,7 @@ export class LiveWebhooks {
 
     if (responseMode === 'responseNode') {
       // Look for a "Respond to Webhook" node in the run data
-      for (const [nodeName, nodeRuns] of Object.entries(run.data.resultData.runData)) {
+      for (const [_nodeName, nodeRuns] of Object.entries(run.data.resultData.runData)) {
         const lastRun = nodeRuns[nodeRuns.length - 1];
         const outputData = lastRun?.data?.main?.[0];
         if (outputData?.length) {

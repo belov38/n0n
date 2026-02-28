@@ -27,4 +27,8 @@ export class TagService {
 	async delete(id: string) {
 		await this.repo.delete(id);
 	}
+
+	async findByWorkflowId(workflowId: string) {
+		return this.repo.findByWorkflowId(workflowId);
+	}
 }

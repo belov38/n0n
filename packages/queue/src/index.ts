@@ -1,2 +1,2 @@
 export { ScalingService, type ExecutionJob } from './scaling.service';
-export { JobProcessor, type JobProcessorDeps } from './job-processor';
+export { JobProcessor, TransientError, type JobProcessorDeps } from './job-processor';

@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { ActiveWorkflowManager } from '../active-workflow-manager';
+import { ActiveWorkflows, ScheduledTaskManager, TriggersAndPollers } from '@n0n/engine';
+import type { INodeTypes, INodeType, ITriggerResponse } from 'n8n-workflow';
 
 function createMockWorkflowRepo() {
   return {
@@ -22,15 +24,48 @@ function createMockWebhookService() {
   };
 }
 
+function createMockNodeTypes(): INodeTypes {
+  return {
+    getByNameAndVersion: mock((_type: string, _version?: number): INodeType => {
+      return { description: { properties: [], displayName: '', name: '', description: '', group: [], version: 1, defaults: {}, inputs: [], outputs: [] } };
+    }),
+    getKnownTypes: mock(() => ({})),
+  } as unknown as INodeTypes;
+}
+
+function createMockWorkflowRunner() {
+  return {
+    run: mock(() => Promise.resolve('exec-1')),
+  };
+}
+
 describe('ActiveWorkflowManager', () => {
   let manager: ActiveWorkflowManager;
   let workflowRepo: ReturnType<typeof createMockWorkflowRepo>;
   let webhookService: ReturnType<typeof createMockWebhookService>;
+  let nodeTypes: ReturnType<typeof createMockNodeTypes>;
+  let activeWorkflows: ActiveWorkflows;
+  let scheduledTaskManager: ScheduledTaskManager;
+  let triggersAndPollers: TriggersAndPollers;
+  let workflowRunner: ReturnType<typeof createMockWorkflowRunner>;
 
   beforeEach(() => {
     workflowRepo = createMockWorkflowRepo();
     webhookService = createMockWebhookService();
-    manager = new ActiveWorkflowManager(workflowRepo as never, webhookService);
+    nodeTypes = createMockNodeTypes();
+    activeWorkflows = new ActiveWorkflows();
+    scheduledTaskManager = new ScheduledTaskManager();
+    triggersAndPollers = new TriggersAndPollers();
+    workflowRunner = createMockWorkflowRunner();
+    manager = new ActiveWorkflowManager(
+      workflowRepo as never,
+      webhookService,
+      nodeTypes,
+      activeWorkflows,
+      scheduledTaskManager,
+      triggersAndPollers,
+      workflowRunner as never,
+    );
   });
 
   describe('init', () => {
@@ -40,7 +75,7 @@ describe('ActiveWorkflowManager', () => {
         { id: 'wf-2', nodes: [], active: true },
       ] as never);
       workflowRepo.findById.mockImplementation((id: string) =>
-        Promise.resolve({ id, nodes: [], active: true } as never),
+        Promise.resolve({ id, nodes: [], connections: {}, active: true, name: 'test', settings: null, staticData: null } as never),
       );
 
       await manager.init();
@@ -56,7 +91,7 @@ describe('ActiveWorkflowManager', () => {
       ] as never);
       workflowRepo.findById.mockImplementation((id: string) => {
         if (id === 'wf-fail') return Promise.resolve(undefined);
-        return Promise.resolve({ id, nodes: [], active: true } as never);
+        return Promise.resolve({ id, nodes: [], connections: {}, active: true, name: 'test', settings: null, staticData: null } as never);
       });
 
       await manager.init();
@@ -71,6 +106,10 @@ describe('ActiveWorkflowManager', () => {
       workflowRepo.findById.mockResolvedValue({
         id: 'wf-1',
         active: true,
+        name: 'Test',
+        connections: {},
+        settings: null,
+        staticData: null,
         nodes: [
           {
             type: 'n0n-nodes.webhook',
@@ -95,6 +134,10 @@ describe('ActiveWorkflowManager', () => {
       workflowRepo.findById.mockResolvedValue({
         id: 'wf-1',
         active: true,
+        name: 'Test',
+        connections: {},
+        settings: null,
+        staticData: null,
         nodes: [
           {
             type: 'n8n-nodes-base.webhook',
@@ -118,7 +161,11 @@ describe('ActiveWorkflowManager', () => {
       workflowRepo.findById.mockResolvedValue({
         id: 'wf-1',
         nodes: [],
+        connections: {},
         active: true,
+        name: 'test',
+        settings: null,
+        staticData: null,
       } as never);
 
       await manager.add('wf-1');
@@ -131,14 +178,73 @@ describe('ActiveWorkflowManager', () => {
       workflowRepo.findById.mockResolvedValue(undefined);
       await expect(manager.add('wf-missing')).rejects.toThrow('not found');
     });
+
+    it('should register cron nodes via scheduledTaskManager', async () => {
+      workflowRepo.findById.mockResolvedValue({
+        id: 'wf-1',
+        active: true,
+        name: 'Cron WF',
+        connections: {},
+        settings: null,
+        staticData: null,
+        nodes: [
+          {
+            type: 'n0n-nodes.cronTrigger',
+            name: 'CronNode',
+            parameters: { cronExpression: '*/5 * * * *' },
+          },
+        ],
+      } as never);
+
+      await manager.add('wf-1');
+
+      expect(manager.isActive('wf-1')).toBe(true);
+    });
+
+    it('should start trigger nodes and collect responses', async () => {
+      const closeFn = mock(() => Promise.resolve());
+      const triggerResponse: ITriggerResponse = { closeFunction: closeFn };
+
+      (nodeTypes.getByNameAndVersion as ReturnType<typeof mock>).mockReturnValue({
+        trigger: mock(() => Promise.resolve(triggerResponse)),
+        description: { properties: [], displayName: '', name: 'customTrigger', group: [], version: 1, defaults: {}, inputs: [], outputs: [] },
+      });
+
+      workflowRepo.findById.mockResolvedValue({
+        id: 'wf-1',
+        active: true,
+        name: 'Trigger WF',
+        connections: {},
+        settings: null,
+        staticData: null,
+        nodes: [
+          {
+            type: 'n0n-nodes.customTrigger',
+            name: 'MyTrigger',
+            typeVersion: 1,
+            position: [0, 0],
+            parameters: {},
+          },
+        ],
+      } as never);
+
+      await manager.add('wf-1');
+
+      expect(manager.isActive('wf-1')).toBe(true);
+      expect(activeWorkflows.isActive('wf-1')).toBe(true);
+    });
   });
 
   describe('remove', () => {
-    it('should unregister webhooks and mark as inactive', async () => {
+    it('should unregister webhooks, stop triggers, and deregister crons', async () => {
       workflowRepo.findById.mockResolvedValue({
         id: 'wf-1',
         nodes: [],
+        connections: {},
         active: true,
+        name: 'test',
+        settings: null,
+        staticData: null,
       } as never);
 
       await manager.add('wf-1');
@@ -152,12 +258,33 @@ describe('ActiveWorkflowManager', () => {
       await manager.remove('wf-nonexistent');
       expect(webhookService.unregisterWorkflowWebhooks).not.toHaveBeenCalled();
     });
+
+    it('should call activeWorkflows.remove to invoke close functions', async () => {
+      const closeFn = mock(() => Promise.resolve());
+      activeWorkflows.add('wf-1', [{ closeFunction: closeFn }]);
+
+      workflowRepo.findById.mockResolvedValue({
+        id: 'wf-1',
+        nodes: [],
+        connections: {},
+        active: true,
+        name: 'test',
+        settings: null,
+        staticData: null,
+      } as never);
+
+      await manager.add('wf-1');
+      await manager.remove('wf-1');
+
+      expect(closeFn).toHaveBeenCalled();
+      expect(activeWorkflows.isActive('wf-1')).toBe(false);
+    });
   });
 
   describe('getActiveIds', () => {
     it('should return all active workflow IDs', async () => {
       workflowRepo.findById.mockImplementation((id: string) =>
-        Promise.resolve({ id, nodes: [], active: true } as never),
+        Promise.resolve({ id, nodes: [], connections: {}, active: true, name: 'test', settings: null, staticData: null } as never),
       );
 
       await manager.add('wf-1');
