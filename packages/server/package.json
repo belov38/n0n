@@ -1,0 +1,21 @@
+{
+  "name": "@n0n/server",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.2.0",
+    "@elysiajs/static": "^1.2.0",
+    "@n0n/db": "workspace:*",
+    "@n0n/engine": "workspace:*",
+    "@n0n/nodes": "workspace:*",
+    "@n0n/types": "workspace:*",
+    "elysia": "^1.2.0",
+    "n8n-workflow": "^1.120.9"
+  }
+}

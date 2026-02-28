@@ -1,0 +1,17 @@
+{
+  "name": "@n0n/nodes",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@n0n/types": "workspace:*",
+    "cheerio": "^1.2.0",
+    "fast-xml-parser": "^5.4.1",
+    "n8n-workflow": "^1.76.1"
+  }
+}

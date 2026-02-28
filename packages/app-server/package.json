@@ -1,0 +1,21 @@
+{
+  "name": "@n0n/app-server",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.2.0",
+    "@n0n/db": "workspace:*",
+    "@n0n/engine": "workspace:*",
+    "@n0n/nodes": "workspace:*",
+    "@n0n/queue": "workspace:*",
+    "@n0n/scaling": "workspace:*",
+    "@n0n/server": "workspace:*",
+    "elysia": "^1.2.0"
+  }
+}

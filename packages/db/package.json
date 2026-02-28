@@ -1,0 +1,21 @@
+{
+  "name": "@n0n/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "generate": "drizzle-kit generate",
+    "migrate": "bun run src/migrate.ts"
+  },
+  "dependencies": {
+    "@n0n/types": "workspace:*",
+    "drizzle-orm": "^0.39.0",
+    "postgres": "^3.4.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.0"
+  }
+}

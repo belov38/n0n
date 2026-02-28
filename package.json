@@ -1,0 +1,22 @@
+{
+  "name": "n0n",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "bun run --filter @n0n/db migrate",
+    "db:generate": "bun run --filter @n0n/db generate"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0",
+    "@types/bun": "^1.2.0"
+  },
+  "packageManager": "bun@1.2.0"
+}
